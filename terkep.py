@@ -1,30 +1,54 @@
 import sys
-from consolemenu import *
-from consolemenu.items import *
+  
+class Graph(): 
+  
+    def __init__(self, vertices): 
+        self.V = vertices 
+        self.graph = [[0 for column in range(vertices)]
+                              for row in range(vertices)] 
+  
+    # A utility function to check if the current color assignment 
+    # is safe for vertex v 
+    def isSafe(self, v, colour, c): 
+        for i in range(self.V): 
+            if self.graph[v][i] == 1 and colour[i] == c: 
+                return False
+        return True
+      
+    # A recursive utility function to solve m 
+    # coloring  problem 
+    def graphColourUtil(self, m, colour, v): 
+        if v == self.V: 
+            return True
+  
+        for c in range(1, m+1): 
+            if self.isSafe(v, colour, c) == True: 
+                colour[v] = c 
+                if self.graphColourUtil(m, colour, v+1) == True: 
+                    return True
+                colour[v] = 0
+  
+    def graphColouring(self, m): 
+        colour = [0] * self.V 
+        if self.graphColourUtil(m, colour, 0) == None: 
+            return False
+  
+        # Print the solution 
+        print("Nyers backtracking:")
+        for c in colour: 
+            print(c), 
+        return True
+  
 
-# Create the menu
-menu = ConsoleMenu("Mesterseges inteligencia", "Hazi1")
-
-# Create some items
-
-# MenuItem is the base class for all items, it doesn't do anything when selected
-menu_item = MenuItem("Menu Item")
-
-# A FunctionItem runs a Python function when selected
-nyers_backtracking = FunctionItem("Nyers backtracking", input, ["Enter an input"])
-
-# A FunctionItem runs a Python function when selected
-backtracking_mvr_forward = FunctionItem("Backtracking + MVR + forward checking", input, ["Enter an input"])
-
-# A FunctionItem runs a Python function when selected
-backtracking_mvr_ac3 = FunctionItem("Backtracking + MVR + AC-3", input, ["Enter an input"])
-# Once we're done creating them, we just add the items to the menu
-
-menu.append_item(menu_item)
-menu.append_item(nyers_backtracking)
-menu.append_item(backtracking_mvr_forward)
-menu.append_item(backtracking_mvr_ac3)
-
-# Finally, we call show to show the menu and allow the user to interact
-menu.show()
-
+g  = Graph(7) 
+g.graph = [
+    [0, 1, 1, 0, 0, 0, 0],
+    [1, 0, 1, 1, 0, 0, 0],
+    [1, 1, 0, 1, 1, 1, 0],
+    [0, 1, 1, 0, 1, 0, 0],
+    [0, 0, 1, 1, 0, 1, 0],
+    [0, 0, 1, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0]
+]
+m=4
+g.graphColouring(m) 
