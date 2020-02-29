@@ -39,7 +39,7 @@ bool graphColoring_backtracking(bool graph[V][V], int color[], int v)
 			if (graphColoring_backtracking(graph, color, v + 1) == true)
 				return true;
 
-			//a valasztott szin vezet megoldashoz, viszalep
+			//a valasztott szin nem vezet megoldashoz, viszalep
 			color[v] = 0;
 		}
 	}
@@ -55,22 +55,6 @@ void putBackColor(int t[], int c) {
 			t[i] = c;
 			return;
 		}
-	}
-}
-
-void print(int t[], int n) {
-	for (int i = 0; i < n; i++) {
-		printf("%d ", t[i]);
-	}
-	printf("\n");
-}
-
-void print2d(int t[V][M]) {
-	for (int i = 0; i < V; i++) {
-		for (int j = 0; j < M; j++) {
-			printf("%d ", t[i][j]);
-		}
-		printf("\n");
 	}
 }
 
@@ -98,13 +82,6 @@ bool deleteInconsistentValues(bool graph[V][V], int v, int c, int forward_check_
 	return true;
 }
 
-//forward checking: visszadja azt a szint amit meg nem toroltunk ki a csucs lehetseges szinei kozul
-int chooseColor(int t[]) {
-	for (int i = 0; i < M; i++) {
-		if (t[i] != 0)
-			return t[i];
-	}
-}
 
 // backtracking + forward checking
 bool graphColoring_forwardChecking(bool graph[V][V], int color[], int v, int forward_check_list[V][M])
@@ -113,23 +90,113 @@ bool graphColoring_forwardChecking(bool graph[V][V], int color[], int v, int for
 	if (v == V)
 		return true;
 
-	int c = chooseColor(forward_check_list[v]); // valasztott szin
-	color[v] = c;
-	ertekadasok++;
-	if (deleteInconsistentValues(graph, v, c, forward_check_list) == true) {
-		if (graphColoring_forwardChecking(graph, color, v + 1, forward_check_list) == true) {
-			return true;
-		}
-		color[v] = 0;
-		for (int i = 0; i < V; i++) {
-			if (graph[v][i]) { // ha szomszedos
-				putBackColor(forward_check_list[i], c); //visszatesszuk a szomszedok lehetseges szinei koze
+	for (int k = 0; k < M; k++) {
+		if (forward_check_list[v][k] == 0)
+			continue;
+		int c = forward_check_list[v][k];
+		ertekadasok++;
+		//a c szin megfelel-e
+		if (isSafe(v, graph, color, c))
+		{
+			color[v] = c;
+			if (deleteInconsistentValues(graph, v, c, forward_check_list) == true) {
+				if (graphColoring_forwardChecking(graph, color, v + 1, forward_check_list) == true) {
+					return true;
+				}
+				color[v] = 0;
+				for (int i = 0; i < V; i++) {
+					if (graph[v][i]) { // ha szomszedos
+						putBackColor(forward_check_list[i], c); //visszatesszuk a szomszedok lehetseges szinei koze
+					}
+				}
 			}
 		}
 	}
 
 	//nincs megfelelo szin
 	return false;
+}
+
+bool removeValuesIfArcIsInconsistent(int x, int y, int arc_consistency_list[V][M]) {
+	for (int i = 0; i < M; i++) {
+		if (arc_consistency_list[x][i] == 0)//kihagyni
+			continue;
+		bool consistent = false;
+		for (int j = 0; j < M; j++) {
+			if (arc_consistency_list[y][j] != 0 && arc_consistency_list[y][j] != arc_consistency_list[x][i]) {
+				consistent = true;
+				break;
+			}
+		}
+		if (!consistent) {
+			arc_consistency_list[x][i] == 0;
+			bool kilep = true;
+			for (int k = 0; k < M; k++) {
+				if (arc_consistency_list[x][k] != 0) {
+					kilep = false;
+					break;
+				}
+			}
+			if (kilep) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+// backtracking + ac-3
+bool backtrack_ac3(bool graph[V][V], int color[], int v, int arc_consistency_list[V][M]) {
+	//minden csucsnak van szine
+	if (v == V)
+		return true;
+
+	//v csucsnak sorra adjuk a szineket
+	for (int k = 1; k <= M; k++)
+	{
+		if (arc_consistency_list[v][k] == 0)
+			continue;
+		int c = arc_consistency_list[v][k];
+		ertekadasok++;
+		//a c szin megfelel-e
+		if (isSafe(v, graph, color, c))
+		{
+			color[v] = c;
+
+			//kovetkezo csucs
+			if (backtrack_ac3(graph, color, v + 1, arc_consistency_list) == true)
+				return true;
+
+			//a valasztott szin nem vezet megoldashoz, viszalep
+			color[v] = 0;
+		}
+	}
+
+	//nincs megfelelo szin
+	return false;
+}
+
+bool graphColoring_ac3(bool graph[V][V], int color[], int arc_consistency_list[V][M])
+{
+	int queue[V*V][2]; // iranyitott elek
+	int n = 0; //elek szama
+	for (int i = 0; i < V; i++) {
+		for (int j = 0; j < V; j++) {
+			if (graph[i][j]) {
+				queue[n][0] = i;
+				queue[n][1] = j;
+				n++;
+			}
+		}
+	}
+	int i = 0; //aktualis el
+	while (i < n) {//amig van el
+		if (!removeValuesIfArcIsInconsistent(queue[i][0], queue[i][1], arc_consistency_list)) {
+			return false;
+		}
+		i++;
+	}
+	backtrack_ac3(graph, color, 0, arc_consistency_list);
 }
 
 //terkepszinezes problema megoldasa 3 algoritmussal
@@ -150,12 +217,14 @@ void graphColoring(bool graph[V][V])
 		printSolution(color);
 	}
 
-	//a forward_check_list -ben taroljuk a csucsok lehetseges szineit, 
+	//taroljuk a csucsok lehetseges szineit, 
 	//inicializaljuk mindenik csucsot mindenik szinnel
 	int forward_check_list[V][3];
+	int arc_consistency_list[V][3];
 	for (int i = 0; i < V; i++) {
 		for (int j = 0; j < 3; j++) {
 			forward_check_list[i][j] = j + 1;
+			arc_consistency_list[i][j] = j + 1;
 		}
 	}
 
@@ -170,6 +239,20 @@ void graphColoring(bool graph[V][V])
 	else {
 		// Print the solution
 		printf("backtracking + forward checking:\n");
+		printSolution(color);;
+	}
+
+	//szin tomb inicializalasa
+	for (int i = 0; i < V; i++)
+		color[i] = 0;
+
+	//backtracking + ac3
+	if (graphColoring_ac3(graph, color, arc_consistency_list) == false) {
+		printf("backtracking + ac3: nincs megoldas\n");
+	}
+	else {
+		// Print the solution
+		printf("backtracking + ac3:\n");
 		printSolution(color);;
 	}
 }
